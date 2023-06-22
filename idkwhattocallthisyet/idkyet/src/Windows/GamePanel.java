@@ -1,8 +1,6 @@
 package Windows;
 
-import GraphicsEngine.Matrix3;
-import GraphicsEngine.Triangle;
-import GraphicsEngine.Vertex;
+import GraphicsEngine.*;
 
 import java.awt.*;
 import java.lang.Runnable;
@@ -37,8 +35,8 @@ public class GamePanel extends IntPanel implements Runnable{
 
     public void start(){
         tris = new ArrayList<Triangle>();
-        File loadingFile = new File("D:/Nerd Shit/prokects/idkwhattocallthisyet/idkyet/src/OBJMAPTEST/TownTest.obj");
-        compileMapFileIntoVert(loadingFile, tris);
+        File loadingFile = new File("idkwhattocallthisyet/idkyet/src/OBJMAPTEST/TownTest2.obj");
+        compileMapFile(loadingFile, tris);
         
         startGameThread();
         repaint();}
@@ -121,27 +119,8 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
     g2.dispose();
   }
 
-  /*public Matrix3 Rotate(ArrayList<Triangle> tris,double[] x, double[] y){
-
-    double heading = Math.toRadians(x[0]);
-    Matrix3 headingTransform = new Matrix3(new double[]{
-        Math.cos(heading), 0, -Math.sin(heading),
-        0, 1, 0,
-        Math.sin(heading), 0, Math.cos(heading)
-    });
-    
-    double pitch = Math.toRadians(y[0]);
-    Matrix3 pitchTransform = new Matrix3(new double[]{
-        1, 0, 0,
-        0, Math.cos(pitch), Math.sin(pitch),
-        0, -Math.sin(pitch), Math.cos(pitch)
-    });
-// Merge matrices in advance
-   return headingTransform.multiply(pitchTransform);
-  }*/
-
   /**loads input map file into vertices, inputs verticies into the tris list */
-  public void compileMapFileIntoVert(File fileIn, ArrayList<Triangle> tris){
+  public void compileMapFile(File fileIn, ArrayList<Triangle> tris){
 
     FileReader fr = null;
     try{fr = new FileReader(fileIn);}
@@ -152,20 +131,41 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
     try{
         String curLine;
         ArrayList<Vertex> vertexList = new ArrayList<Vertex>();
-        int i = 0;
+        ArrayList<TextureCoordinate> textureList = new ArrayList<TextureCoordinate>();
+        ArrayList<Normal> normalList = new ArrayList<Normal>(); 
+
+        ArrayList<Face> faceList = new ArrayList<Face>();
+        
         while((curLine = br.readLine()) != null){
             
-           // System.out.println(curLine);
+            //Adds vertexes to vertexList
+            if(!curLine.equals("") && (curLine.substring(0,2).equals("v "))){
+                vertexList.add(vertexLineParseHelper(curLine));}
             
-            if(!curLine.equals("") && (curLine.substring(0,1).equals("v") && curLine.substring(1,2).equals(" "))){
-                vertexList.add(vertLineParseHelper01(curLine)); i++;}
+            //Adds textures to textureList
+            else if(!curLine.equals("") && (curLine.substring(0,2).equals("vt "))){
+                textureList.add(textureLineParseHelper(curLine));}
             
-            if(i == 3){
-                //System.out.println(vertexList);
-                tris.add(new Triangle(vertexList.get(0), vertexList.get(1), vertexList.get(2), Color.BLUE));
-                vertexList.clear(); i = 0;
+            //adds normals to normalList
+            else if(!curLine.equals("") && (curLine.substring(0,2).equals("vn "))){
+                normalList.add(normalLineParseHelper(curLine));}
+            
+            //adds faces to faceList
+            else if(!curLine.equals("") && (curLine.substring(0,2).equals("f "))){
+                faceList.add(faceLineParseHelper(curLine));}
+        }
+        for(Face curFace : faceList){
+            
+            if(curFace.getVertA() != -1 && curFace.getVertB() != -1 && curFace.getVertC() != -1){
+                Vertex vA = vertexList.get(curFace.getVertA()-1);
+                Vertex vB = vertexList.get(curFace.getVertB()-1);
+                Vertex vC = vertexList.get(curFace.getVertC()-1);
+
+                tris.add(new Triangle(vA,vB,vC,Color.white));
             }
         }
+        
+        
         System.out.println("comp finished");
     }
  
@@ -173,29 +173,91 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
   }
 
   
-  private Vertex vertLineParseHelper01(String curLine){
-    //System.out.println(curLine);
+  private Vertex vertexLineParseHelper(String curLine){
         //0 x, 1 y, 2 z
-        int[] places = vertLineParseHelper02(curLine);
-
-        //System.out.println(places[0] + "    " + places[1] + "    " + places[2]);
-        //System.out.println(curLine.substring(2,places[1]) + "|||" + curLine.substring(places[1]+1,places[2]) + "|||" + curLine.substring(places[2]+1));
+        int[] places = spaceParseHelper(curLine);
                 
         float x = Float.parseFloat(curLine.substring(2,places[1]));
         float y = Float.parseFloat(curLine.substring(places[1]+1,places[2]));
         float z = Float.parseFloat(curLine.substring(places[2]+1));
                 
-        return new Vertex(x, y, z);
+       //edit
+        return new Vertex(x*15, y*15, z*15);
+  }
+
+  private TextureCoordinate textureLineParseHelper(String curLine){
+
+    int[] places = spaceParseHelper(curLine);
+
+    float valA = Float.parseFloat(curLine.substring(3,places[1]));
+    float valB = Float.parseFloat(curLine.substring(places[1]+1));
+
+    return new TextureCoordinate(valA, valB);
+  }
+
+  private Normal normalLineParseHelper(String curLine){
+
+    int[] places = spaceParseHelper(curLine);
+                
+        float valA = Float.parseFloat(curLine.substring(2,places[1]));
+        float valB = Float.parseFloat(curLine.substring(places[1]+1,places[2]));
+        float valC = Float.parseFloat(curLine.substring(places[2]+1));
+                
+       //edit
+        return new Normal(valA, valB, valC);
+  }
+
+  private Face faceLineParseHelper(String curLine){
+
+    ArrayList<Integer> slashPlaces = slashParseHelper(curLine);
+    int[] spacePlaces = spaceParseHelper(curLine);
+
+    if(slashPlaces.size() == 6){
+        int vA = Integer.parseInt(curLine.substring(spacePlaces[0]+1, slashPlaces.get(0)));
+        int tA = Integer.parseInt(curLine.substring(slashPlaces.get(0)+1, slashPlaces.get(1)));
+        int nA = Integer.parseInt(curLine.substring(slashPlaces.get(1)+1, spacePlaces[1]));
+
+        int vB = Integer.parseInt(curLine.substring(spacePlaces[1]+1, slashPlaces.get(2)));
+        int tB = Integer.parseInt(curLine.substring(slashPlaces.get(2)+1, slashPlaces.get(3)));
+        int nB = Integer.parseInt(curLine.substring(slashPlaces.get(3)+1, spacePlaces[2]));
+
+        int vC = Integer.parseInt(curLine.substring(spacePlaces[2]+1, slashPlaces.get(4)));
+        int tC = Integer.parseInt(curLine.substring(slashPlaces.get(4)+1, slashPlaces.get(5)));
+        int nC = Integer.parseInt(curLine.substring(slashPlaces.get(5)+1));
+
+        return new Face(vA,tA,nA, vB,tB,nB, vC,tC,nC);
+    }
+
+    int vA = Integer.parseInt(curLine.substring(spacePlaces[0]+1, slashPlaces.get(0)));
+    int nA = Integer.parseInt(curLine.substring(slashPlaces.get(0)+1, spacePlaces[1]));
+
+    int vB = Integer.parseInt(curLine.substring(spacePlaces[1]+1, slashPlaces.get(1)));
+    int nB = Integer.parseInt(curLine.substring(slashPlaces.get(1)+1, spacePlaces[2]));
+
+    int vC = Integer.parseInt(curLine.substring(spacePlaces[2]+1, slashPlaces.get(2)));
+    int nC = Integer.parseInt(curLine.substring(slashPlaces.get(2)+1));
+
+    return new Face(vA,nA, vB,nB, vC,nC);
   }
   
   
-  private int[] vertLineParseHelper02(String str){
+  private int[] spaceParseHelper(String str){
     int[] places = new int[3];
     int z = 0;
 
     for(int i = 1; i < str.length(); i++)
         if(str.substring(i,i+1).equals(" ")){
             places[z] = i; z++;}
+    
+            return places;
+  }
+
+    private ArrayList<Integer> slashParseHelper(String str){
+    ArrayList<Integer> places = new ArrayList<Integer>();
+
+    for(int i = 1; i < str.length(); i++)
+        if(str.substring(i,i+1).equals("/")){
+            places.add(i);}
     
             return places;
   }
