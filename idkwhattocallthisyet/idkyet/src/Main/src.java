@@ -14,8 +14,8 @@ public class src{
 
         GamePanel gameP = new GamePanel(mainWin);
         mainWin.add(gameP, JLayeredPane.DEFAULT_LAYER);
-
-        mainWin.createMenu();
+        gameP.createMenu();
+        gameP.requestFocus();
 
     //Starts Processes//
         mainWin.setVisible(true);

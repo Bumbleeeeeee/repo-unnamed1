@@ -5,6 +5,16 @@ import GraphicsEngine.*;
 import java.awt.*;
 import java.lang.Runnable;
 import java.util.ArrayList;
+
+import javax.swing.JButton;
+import javax.swing.JLayeredPane;
+
+import java.awt.event.KeyListener;
+import java.awt.event.KeyEvent;
+
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+
 import java.awt.geom.Path2D;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseEvent;
@@ -12,27 +22,41 @@ import java.io.*;
 
 public class GamePanel extends IntPanel implements Runnable{
 
-    final int FPS = 60;    
+    ExtFrame parentWindow = (ExtFrame)this.getParentWindow();
+    SettingsMenu menuP;
+    
+    final int FPS = 144;    
     
     Thread gameThread;
-
     File curMapFile;
+    public boolean upPressed, downPressed, leftPressed, rightPressed;
 
-    double[] x = new double[2];
-    double[] y = new double[2];
-
+    
+    double scale = 1.0;
+    double cameraSpeed = 10.0;
+    
+    int mouseX = 0;
+    int mouseY = 0;
+    
+    float pushX = 0;
+    float pushY = 0;
+    float pushZ = 0;
+    
     ArrayList<Triangle> tris = new ArrayList<Triangle>();
 
     public GamePanel(Container parent){
         super(parent);
         
-        this.setOpaque(true);
         this.setBackground(Color.BLUE);
         this.setSize(parent.getSize());
-        this.setVisible(true);
+        this.setFocusable(true);
+        
         this.addMouseMotionListener(new MotionListener());
+        this.addKeyListener(new PressListener());
     }
 
+//////////////////////////////////////////////    
+    
     public void start(){
         tris = new ArrayList<Triangle>();
         File loadingFile = new File("idkwhattocallthisyet/idkyet/src/OBJMAPTEST/TownTest2.obj");
@@ -41,11 +65,14 @@ public class GamePanel extends IntPanel implements Runnable{
         startGameThread();
         repaint();}
     
-    public void startGameThread(){
+//////////////////////////////////////////////    
+
+        public void startGameThread(){
         gameThread = new Thread(this);
         gameThread.start();}
 
-  
+//////////////////////////////////////////////
+
     @Override
     public void run(){
         double drawInterval = 1000000000 / FPS;
@@ -63,18 +90,29 @@ public class GamePanel extends IntPanel implements Runnable{
 
             if(delta >= 1){
                 update();
-                //repaint();
+                repaint();
                 delta--;
-                //System.out.println("frame");
             }
         }
     }
 
-    ///////////////////
+//////////////////////////////////////////////
 
     public void update(){
-    
+        if(upPressed){
+            scale += 0.05;}
+        
+        if(downPressed){
+            scale -= 0.05;}
+
+        if(rightPressed){
+            pushX += cameraSpeed;}
+
+        if(leftPressed){
+            pushX -= cameraSpeed;}
   }
+
+//////////////////////////////////////////////
 
   public void paintComponent(Graphics g){
 
@@ -86,13 +124,13 @@ public class GamePanel extends IntPanel implements Runnable{
 
     //loadTetraTest();
     
-    double heading = Math.toRadians(x[0]);
+    double heading = Math.toRadians(mouseX);
     Matrix3 headingTransform = new Matrix3(new double[]{
         Math.cos(heading), 0, -Math.sin(heading),
         0, 1, 0,
         Math.sin(heading), 0, Math.cos(heading)
     });
-    double pitch = Math.toRadians(y[0]);
+    double pitch = Math.toRadians(mouseY);
     Matrix3 pitchTransform = new Matrix3(new double[]{
         1, 0, 0,
         0, Math.cos(pitch), Math.sin(pitch),
@@ -104,20 +142,39 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
    // The generated shape is centered on the origin (0, 0, 0), and we will do rotation around the origin later.
     g2.translate(getWidth() / 2, getHeight() / 2);
     g2.setColor(Color.WHITE);
+    
     for (Triangle t : tris) {
         Vertex v1 = transform.transform(t.getV1());
         Vertex v2 = transform.transform(t.getV2());
         Vertex v3 = transform.transform(t.getV3());
-    Path2D path = new Path2D.Double();
-    path.moveTo(v1.getX(), v1.getY());
-    path.lineTo(v2.getX(), v2.getY());
-    path.lineTo(v3.getX(), v3.getY());
-    path.closePath();
-    g2.draw(path);
-}
+
+        v1.scaleCoords(scale, pushX, pushY, pushZ); v2.scaleCoords(scale, pushX, pushY, pushZ); v3.scaleCoords(scale, pushX, pushY, pushZ);
+        
+        Path2D path = new Path2D.Double();
+        path.moveTo(v1.getX(), v1.getY());
+        path.lineTo(v2.getX(), v2.getY());
+        path.lineTo(v3.getX(), v3.getY());
+        path.closePath();
+        
+        g2.draw(path);
+    }
         
     g2.dispose();
   }
+
+  //////////////////////////////////////////////
+
+  public void createMenu(){
+        JLayeredPane contentPane = (JLayeredPane)parentWindow.getContentPane();
+        
+        menuP = new SettingsMenu(this);
+        contentPane.add(menuP, JLayeredPane.POPUP_LAYER); menuP.setVisible(false);}
+
+    public void flipflopMenu(){menuP.setVisible(!menuP.isVisible());}
+    
+    
+
+    //////////////////////////////////////////////
 
   /**loads input map file into vertices, inputs verticies into the tris list */
   public void compileMapFile(File fileIn, ArrayList<Triangle> tris){
@@ -252,7 +309,7 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
             return places;
   }
 
-    private ArrayList<Integer> slashParseHelper(String str){
+  private ArrayList<Integer> slashParseHelper(String str){
     ArrayList<Integer> places = new ArrayList<Integer>();
 
     for(int i = 1; i < str.length(); i++)
@@ -263,7 +320,7 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
   }
   
   
-  
+//////////////////////////////////////////////  
   
   
   public void loadTetraTest(){
@@ -296,21 +353,107 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
   }
    
   
+////////////////////////////////////////////////////////////////
+    /////////////////helpers for inputs///////////////////
+    
+/**handles inputs, is a helper*/
+private class PressListener implements KeyListener{
+  
 
+    @Override
+    public void keyPressed(KeyEvent e){
+
+        int code = e.getKeyCode();
+    
+        if(code == KeyEvent.VK_W){
+            upPressed = true;}
+
+        if(code == KeyEvent.VK_S){
+            downPressed = true;}
+
+        if(code == KeyEvent.VK_A){
+            leftPressed = true;}
+
+        if(code == KeyEvent.VK_D){
+            rightPressed = true;}
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e){
+
+        int code = e.getKeyCode();
+
+        if(code == KeyEvent.VK_ESCAPE)
+            flipflopMenu();
+    
+        if(code == KeyEvent.VK_W)
+            upPressed = false;
+
+        if(code == KeyEvent.VK_S)
+            downPressed = false;
+
+        if(code == KeyEvent.VK_A)
+            leftPressed = false;
+
+        if(code == KeyEvent.VK_D)
+            rightPressed = false;
+        }
+
+        @Override
+        public void  keyTyped(KeyEvent e){
+        }
+    }
+
+//////////////////////////////////////////////  
+  
     private class MotionListener implements MouseMotionListener {
             
         @Override
         public void mouseDragged(MouseEvent e) {
-            double yi = 180.0 / getHeight();
-            double xi = 180.0 / getWidth();
-            x[0] = (int) (e.getX() * xi);
-            y[0] = -(int) (e.getY() * yi);
-            repaint();
+            
+            //xi and yi are essentially sensativity, 1 being 1:1 relation between mouse movements and rotation
+            double yi =  0.25; //180.0 / getHeight();
+            double xi = 0.25; //180.0 / getWidth();
+            
+            mouseX = (int) (e.getX() * xi);
+            mouseY = -(int) (e.getY() * yi);
+            
+            //repaint();
         }
 
         @Override
         public void mouseMoved(MouseEvent e) {
 
+        }
+    }
+
+    /**the settings and quit menu*/
+private class SettingsMenu extends IntPanel{
+    
+    JButton exitButton;
+    
+    public SettingsMenu(Container parent){
+        
+        super(parent);
+
+        this.setBounds(0,0,400,400);
+        makeJButtons();
+    }
+
+    public void makeJButtons(){
+
+        exitButton = new JButton("Quit");
+
+        exitButton.setBounds(0,0,200,100);
+        exitButton.setVisible(true);
+
+        exitButton.addActionListener(new ActionListener(){
+            
+            public void actionPerformed(ActionEvent e){
+                ExtFrame mainWin = (ExtFrame)GamePanel.this.parentWindow; mainWin.quitExtFrame();
+            }});
+        
+            this.add(exitButton);
         }
     }
 }
