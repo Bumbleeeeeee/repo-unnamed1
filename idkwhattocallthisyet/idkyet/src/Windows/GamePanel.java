@@ -59,7 +59,8 @@ public class GamePanel extends IntPanel implements Runnable{
     
     public void start(){
         tris = new ArrayList<Triangle>();
-        File loadingFile = new File("idkwhattocallthisyet/idkyet/src/OBJMAPTEST/TownTest2.obj");
+        //File loadingFile = new File("idkwhattocallthisyet/idkyet/src/OBJMAPTEST/teapottest/Teapot set.obj");
+        File loadingFile = new File("idkwhattocallthisyet/idkyet/src/OBJMAPTEST/towntest/TownTest.obj");
         compileMapFile(loadingFile, tris);
         
         startGameThread();
@@ -209,7 +210,7 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
             
             //adds faces to faceList
             else if(!curLine.equals("") && (curLine.substring(0,2).equals("f "))){
-                faceList.add(faceLineParseHelper(curLine));}
+                faceList.addAll(faceLineParseHelper(curLine));}
         }
         for(Face curFace : faceList){
             
@@ -222,7 +223,7 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
             }
         }
         
-        
+        System.out.println(tris.size() + ", " + vertexList.size());
         System.out.println("comp finished");
     }
  
@@ -232,11 +233,11 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
   
   private Vertex vertexLineParseHelper(String curLine){
         //0 x, 1 y, 2 z
-        int[] places = spaceParseHelper(curLine);
+        ArrayList<Integer> places = spaceParseHelper(curLine);
                 
-        float x = Float.parseFloat(curLine.substring(2,places[1]));
-        float y = Float.parseFloat(curLine.substring(places[1]+1,places[2]));
-        float z = Float.parseFloat(curLine.substring(places[2]+1));
+        float x = Float.parseFloat(curLine.substring(2,places.get(1)));
+        float y = Float.parseFloat(curLine.substring(places.get(1)+1,places.get(2)));
+        float z = Float.parseFloat(curLine.substring(places.get(2)+1));
                 
        //edit
         return new Vertex(x*15, y*15, z*15);
@@ -244,67 +245,81 @@ Matrix3 transform = headingTransform.multiply(pitchTransform);
 
   private TextureCoordinate textureLineParseHelper(String curLine){
 
-    int[] places = spaceParseHelper(curLine);
+    ArrayList<Integer> places = spaceParseHelper(curLine);
 
-    float valA = Float.parseFloat(curLine.substring(3,places[1]));
-    float valB = Float.parseFloat(curLine.substring(places[1]+1));
+    float valA = Float.parseFloat(curLine.substring(3,places.get(1)));
+    float valB = Float.parseFloat(curLine.substring(places.get(1)+1));
 
     return new TextureCoordinate(valA, valB);
   }
 
   private Normal normalLineParseHelper(String curLine){
 
-    int[] places = spaceParseHelper(curLine);
+    ArrayList<Integer> places = spaceParseHelper(curLine);
                 
-        float valA = Float.parseFloat(curLine.substring(2,places[1]));
-        float valB = Float.parseFloat(curLine.substring(places[1]+1,places[2]));
-        float valC = Float.parseFloat(curLine.substring(places[2]+1));
+        float valA = Float.parseFloat(curLine.substring(2,places.get(1)));
+        float valB = Float.parseFloat(curLine.substring(places.get(1)+1,places.get(2)));
+        float valC = Float.parseFloat(curLine.substring(places.get(2)+1));
                 
        //edit
         return new Normal(valA, valB, valC);
   }
 
-  private Face faceLineParseHelper(String curLine){
+  private ArrayList<Face> faceLineParseHelper(String curLine){
 
+    ArrayList<Face> out = new ArrayList<Face>();
+    
     ArrayList<Integer> slashPlaces = slashParseHelper(curLine);
-    int[] spacePlaces = spaceParseHelper(curLine);
+    ArrayList<Integer> spacePlaces = spaceParseHelper(curLine);
 
-    if(slashPlaces.size() == 6){
-        int vA = Integer.parseInt(curLine.substring(spacePlaces[0]+1, slashPlaces.get(0)));
-        int tA = Integer.parseInt(curLine.substring(slashPlaces.get(0)+1, slashPlaces.get(1)));
-        int nA = Integer.parseInt(curLine.substring(slashPlaces.get(1)+1, spacePlaces[1]));
+    if(slashPlaces.size() >= 6){
+        int curVert = 1;
+        //System.out.println(spacePlaces.size());
+        for(int i = 0; i <= spacePlaces.size()-3; i++){
+            
+            int vA = Integer.parseInt(curLine.substring(spacePlaces.get(0)+1, slashPlaces.get(0)));
+            int tA = Integer.parseInt(curLine.substring(slashPlaces.get(0)+1, slashPlaces.get(1)));
+            int nA = Integer.parseInt(curLine.substring(slashPlaces.get(1)+1, spacePlaces.get(1)));
+            
+            int vB = Integer.parseInt(curLine.substring(spacePlaces.get(curVert)+1, slashPlaces.get((curVert+1)*2-2)));
+            int tB = Integer.parseInt(curLine.substring(slashPlaces.get((curVert+1)*2-2)+1, slashPlaces.get((curVert+1)*2-1)));
+            int nB = Integer.parseInt(curLine.substring(slashPlaces.get((curVert+1)*2-1)+1, spacePlaces.get(curVert+1)));
+            
+            int vC = Integer.parseInt(curLine.substring(spacePlaces.get(curVert+1)+1, slashPlaces.get((curVert+2)*2-2)));;
+            int tC = Integer.parseInt(curLine.substring(slashPlaces.get((curVert+2)*2-2)+1, slashPlaces.get((curVert+2)*2-1)));
+            int nC;
+            
 
-        int vB = Integer.parseInt(curLine.substring(spacePlaces[1]+1, slashPlaces.get(2)));
-        int tB = Integer.parseInt(curLine.substring(slashPlaces.get(2)+1, slashPlaces.get(3)));
-        int nB = Integer.parseInt(curLine.substring(slashPlaces.get(3)+1, spacePlaces[2]));
-
-        int vC = Integer.parseInt(curLine.substring(spacePlaces[2]+1, slashPlaces.get(4)));
-        int tC = Integer.parseInt(curLine.substring(slashPlaces.get(4)+1, slashPlaces.get(5)));
-        int nC = Integer.parseInt(curLine.substring(slashPlaces.get(5)+1));
-
-        return new Face(vA,tA,nA, vB,tB,nB, vC,tC,nC);
+            try{nC = Integer.parseInt(curLine.substring(slashPlaces.get((curVert+2)*2-1)+1, spacePlaces.get(curVert+2)));}
+            catch(IndexOutOfBoundsException e){nC = Integer.parseInt(curLine.substring(slashPlaces.get((curVert+2)*2-1)+1));}
+            out.add(new Face(vA,tA,nA, vB,tB,nB, vC,tC,nC));
+            curVert++;
+        }
+        
+        return out;
     }
 
-    int vA = Integer.parseInt(curLine.substring(spacePlaces[0]+1, slashPlaces.get(0)));
-    int nA = Integer.parseInt(curLine.substring(slashPlaces.get(0)+1, spacePlaces[1]));
+    int vA = Integer.parseInt(curLine.substring(spacePlaces.get(0)+1, slashPlaces.get(0)));
+    int nA = Integer.parseInt(curLine.substring(slashPlaces.get(0)+1, spacePlaces.get(1)));
 
-    int vB = Integer.parseInt(curLine.substring(spacePlaces[1]+1, slashPlaces.get(1)));
-    int nB = Integer.parseInt(curLine.substring(slashPlaces.get(1)+1, spacePlaces[2]));
+    int vB = Integer.parseInt(curLine.substring(spacePlaces.get(1)+1, slashPlaces.get(1)));
+    int nB = Integer.parseInt(curLine.substring(slashPlaces.get(1)+1, spacePlaces.get(2)));
 
-    int vC = Integer.parseInt(curLine.substring(spacePlaces[2]+1, slashPlaces.get(2)));
+    int vC = Integer.parseInt(curLine.substring(spacePlaces.get(2)+1, slashPlaces.get(2)));
     int nC = Integer.parseInt(curLine.substring(slashPlaces.get(2)+1));
 
-    return new Face(vA,nA, vB,nB, vC,nC);
+    out.add(new Face(vA,nA, vB,nB, vC,nC));
+    return out;
   }
   
   
-  private int[] spaceParseHelper(String str){
-    int[] places = new int[3];
+  private ArrayList<Integer> spaceParseHelper(String str){
+    ArrayList<Integer> places = new ArrayList<Integer>();
     int z = 0;
 
     for(int i = 1; i < str.length(); i++)
         if(str.substring(i,i+1).equals(" ")){
-            places[z] = i; z++;}
+            places.add(i); z++;}
     
             return places;
   }
